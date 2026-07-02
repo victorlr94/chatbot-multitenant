@@ -145,9 +145,9 @@ desde un solo proceso:
 
 ## Checklist para mostrar el MVP en una demo real
 
-- [ ] `qwen3:8b` descargado y configurado en `.env`
-- [ ] `uv run chatbot ingest` corrido con corpus real (o demo_clinica)
-- [ ] `uv run python scripts/evaluate.py` con score ≥ 80%
+- [x] `qwen3:8b` descargado y configurado en `.env`
+- [x] `uv run chatbot ingest` corrido con corpus real (o demo_clinica)
+- [x] `uv run python scripts/evaluate.py` con score ≥ 80% — **9/11 (82%) con qwen3:8b**
 - [ ] `uv run uvicorn chatbot_app.main:app` corriendo localmente
 - [ ] Widget accesible en `http://localhost:8000` desde el navegador
 - [ ] Demo path probado: pregunta del corpus → respuesta con fuente, pregunta
