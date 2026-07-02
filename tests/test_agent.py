@@ -37,7 +37,8 @@ def test_tool_call_roundtrip() -> None:
                 content="",
                 tool_calls=[ToolCall(id="c1", name="echo", arguments={"text": "hola"})],
             ),
-            LLMResponse(content="La herramienta dijo: eco: hola"),
+            LLMResponse(content=""),  # LLM para voluntariamente → agente fuerza síntesis
+            LLMResponse(content="La herramienta dijo: eco: hola"),  # síntesis final
         ]
     )
     agent = Agent(llm, ToolRegistry([_echo_tool()]), system_prompt="Eres un bot.")
@@ -56,7 +57,8 @@ def test_unknown_tool_reports_error_and_continues() -> None:
     llm = FakeLLM(
         [
             LLMResponse(content="", tool_calls=[ToolCall(id="c1", name="nope", arguments={})]),
-            LLMResponse(content="No pude usar esa herramienta."),
+            LLMResponse(content=""),  # para voluntariamente → agente fuerza síntesis
+            LLMResponse(content="No pude usar esa herramienta."),  # síntesis final
         ]
     )
     agent = Agent(llm, ToolRegistry(), system_prompt="Eres un bot.")

@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     llm_model: str = "ollama/llama3.1:8b"
     llm_api_base: str | None = "http://localhost:11434"
     llm_temperature: float = 0.2
+    llm_timeout: float = 120.0
+    # None = comportamiento del provider; False = desactiva thinking en qwen3 (mucho más rápido)
+    llm_think: bool | None = None
     llm_max_tool_rounds: int = 4
 
     # Embeddings (multilingüe; servido también por Ollama en el MVP)

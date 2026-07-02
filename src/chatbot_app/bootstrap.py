@@ -96,6 +96,8 @@ def build_context(settings: Settings | None = None, llm: LLM | None = None) -> A
             model=settings.llm_model,
             api_base=settings.llm_api_base,
             temperature=settings.llm_temperature,
+            timeout=settings.llm_timeout,
+            think=settings.llm_think,
         ),
         tools=registry,
         system_prompt=system_prompt,

@@ -49,9 +49,14 @@ class Agent:
         for _ in range(self._max_tool_rounds):
             response = self._llm.chat(history, tools=specs or None)
             if not response.wants_tools:
-                content = response.content.strip() or FALLBACK_RESPONSE
-                history.append(ChatMessage(role="assistant", content=content))
-                return AgentReply(content=content, tool_calls_made=tools_made)
+                if not tools_made:
+                    # Sin tools usadas: respuesta directa (fuera de scope, etc.)
+                    content = response.content.strip() or FALLBACK_RESPONSE
+                    history.append(ChatMessage(role="assistant", content=content))
+                    return AgentReply(content=content, tool_calls_made=tools_made)
+                # Se usaron tools pero el modelo paró voluntariamente: forzar síntesis
+                # sin tools para que genere lenguaje natural en lugar de JSON/crudo.
+                break
 
             history.append(
                 ChatMessage(
@@ -65,7 +70,7 @@ class Agent:
                 result = self._tools.execute(call.name, call.arguments)
                 history.append(ChatMessage(role="tool", content=result, tool_call_id=call.id))
 
-        # Se agotaron las rondas de tools: pedir respuesta final sin herramientas.
+        # Síntesis final sin herramientas (agotadas las rondas o parada voluntaria post-tools).
         response = self._llm.chat(history, tools=None)
         content = response.content.strip() or FALLBACK_RESPONSE
         history.append(ChatMessage(role="assistant", content=content))

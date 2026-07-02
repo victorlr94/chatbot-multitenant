@@ -51,11 +51,14 @@ class LiteLLMClient:
         api_base: str | None = None,
         temperature: float = 0.2,
         timeout: float = 120.0,
+        think: bool | None = None,
     ) -> None:
         self._model = model
         self._api_base = api_base
         self._temperature = temperature
         self._timeout = timeout
+        # think=False desactiva el thinking mode de qwen3 vía Ollama (mucho más rápido)
+        self._think = think
 
     def chat(
         self,
@@ -70,6 +73,8 @@ class LiteLLMClient:
         }
         if self._api_base:
             kwargs["api_base"] = self._api_base
+        if self._think is not None and self._model.startswith("ollama/"):
+            kwargs["extra_body"] = {"think": self._think}
         if tools:
             kwargs["tools"] = [t.to_openai() for t in tools]
 
