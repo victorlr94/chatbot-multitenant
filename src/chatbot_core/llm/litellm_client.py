@@ -85,4 +85,36 @@ class LiteLLMClient:
                     arguments=_parse_arguments(tc.function.arguments),
                 )
             )
-        return LLMResponse(content=message.content or "", tool_calls=tool_calls)
+
+        content = message.content or ""
+        # Algunos modelos Ollama (ej. llama3.1:8b) devuelven el tool call como JSON
+        # en el campo content en lugar de en message.tool_calls. LiteLLM no siempre
+        # normaliza este comportamiento, así que lo parseamos manualmente como fallback.
+        if not tool_calls and content.strip().startswith("{"):
+            tool_calls = _try_parse_content_tool_call(content.strip())
+            if tool_calls:
+                content = ""
+
+        return LLMResponse(content=content, tool_calls=tool_calls)
+
+
+def _try_parse_content_tool_call(content: str) -> list[ToolCall]:
+    """Intenta parsear un tool call JSON embebido en el campo content."""
+    try:
+        data = json.loads(content)
+    except json.JSONDecodeError:
+        return []
+    if not isinstance(data, dict):
+        return []
+    if data.get("type") != "function" or "function" not in data:
+        return []
+    fn = data["function"]
+    name = fn.get("name", "")
+    args = fn.get("arguments", {})
+    if not name:
+        return []
+    if isinstance(args, str):
+        args = _parse_arguments(args)
+    if not isinstance(args, dict):
+        args = {}
+    return [ToolCall(id=data.get("id", "call_0"), name=name, arguments=args)]
