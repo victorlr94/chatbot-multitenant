@@ -1,0 +1,47 @@
+# Tenant de demostración: clínica dental.
+# Para montar la solución en otra empresa: copiar esta carpeta, cambiar este
+# archivo y los documentos de docs/, y correr `uv run chatbot ingest`.
+
+name: "Clínica Dental Sonrisa"
+sector: "clínica dental"
+language: "es"
+
+scope: |
+  Respondes únicamente sobre la Clínica Dental Sonrisa: sus servicios y precios,
+  horarios de atención, ubicación, formas de pago, políticas (cancelación,
+  primera visita, urgencias) y el agendamiento de citas.
+
+out_of_scope_response: |
+  Lo siento, solo puedo ayudarte con información sobre la Clínica Dental Sonrisa
+  y con la gestión de tus citas. ¿Te ayudo con alguna de esas cosas?
+
+persona: |
+  Hablas con calidez y profesionalidad, como el personal de recepción de una
+  clínica. Tuteas al paciente.
+
+scheduling:
+  enabled: true
+  timezone: "America/Havana"
+  slot_step_min: 30
+  booking_horizon_days: 14
+  # 0=lunes ... 6=domingo
+  hours:
+    0: ["09:00-13:00", "14:00-18:00"]
+    1: ["09:00-13:00", "14:00-18:00"]
+    2: ["09:00-13:00", "14:00-18:00"]
+    3: ["09:00-13:00", "14:00-18:00"]
+    4: ["09:00-13:00", "14:00-17:00"]
+    5: ["09:00-12:00"]
+  services:
+    - id: consulta_general
+      name: "Consulta general"
+      duration_min: 30
+      description: "Revisión y diagnóstico"
+    - id: limpieza
+      name: "Limpieza dental"
+      duration_min: 60
+      description: "Profilaxis completa"
+    - id: blanqueamiento
+      name: "Blanqueamiento"
+      duration_min: 90
+      description: "Blanqueamiento profesional en consulta"

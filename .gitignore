@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+build/
+dist/
+
+# Herramientas
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Datos y estado local (regenerables)
+data/
+*.db
+*.sqlite3
+logs/
+.chroma/
+
+# Secretos y entorno
+.env
+.env.*
+!.env.example
+
+# IDE / SO
+.idea/
+.vscode/
+Thumbs.db
+.DS_Store
