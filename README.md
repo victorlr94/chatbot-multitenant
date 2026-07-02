@@ -9,6 +9,23 @@ El MVP corre 100% local con [Ollama](https://ollama.com) (LLM y embeddings). El 
 un modelo cloud (Anthropic, OpenAI, etc.) para producción en web o WhatsApp es un cambio
 de variables de entorno, no de código.
 
+## Estado actual (julio 2026)
+
+| Componente | Estado |
+|---|---|
+| Núcleo reutilizable (RAG, agente, citas, guards, observabilidad) | ✅ Implementado |
+| Canal CLI (chat en terminal) | ✅ Funcional |
+| Canal web (FastAPI + widget JS) | ✅ Funcional |
+| Tenant demo `demo_clinica` | ✅ Corpus indexado, citas configuradas |
+| 52 tests unitarios (FakeLLM, sin red) | ✅ Todos en verde |
+| Verificación e2e con Ollama real (`qwen3:8b`) | ✅ RAG + tool calling validado |
+| Swap local → cloud (LiteLLM) | ✅ Solo cambio de `.env` |
+| Multi-tenant por configuración | ✅ Añadir empresa = copiar carpeta + ingest |
+| Sync Google Calendar | 🔲 Contrato definido, implementación pendiente |
+| Canal WhatsApp | 🔲 Diseño preparado, requiere Meta API/BSP |
+| Sesiones persistentes (Redis/DB) | 🔲 Actualmente en memoria |
+| Dockerfile / deploy cloud | 🔲 Siguiente fase |
+
 ## Arquitectura
 
 Agente único con herramientas (tool calling) + RAG. La decisión está justificada en
@@ -51,26 +68,29 @@ flowchart TD
 
 - Python 3.12 (lo gestiona [uv](https://docs.astral.sh/uv/) automáticamente)
 - [Ollama](https://ollama.com) corriendo localmente (MVP)
-- ~6 GB de VRAM libres para `llama3.1:8b` + `bge-m3`
+- GPU con 8-12 GB VRAM recomendada; CPU funciona pero con latencia alta
 
 ## Puesta en marcha (MVP local)
 
 ```bash
-# 1. Modelos locales
-ollama pull llama3.1:8b     # LLM con tool calling
-ollama pull bge-m3          # embeddings multilingües
+# 1. Modelos locales (solo la primera vez)
+ollama pull qwen3:8b    # LLM principal — mejor tool calling que llama3.1:8b
+ollama pull bge-m3      # embeddings multilingües (español incluido)
 
-# 2. Dependencias
+# 2. Dependencias Python
 uv sync
 
-# 3. Indexar el corpus del tenant demo (clínica dental)
+# 3. Copiar configuración de entorno
+cp .env.example .env    # revisar y ajustar si hace falta
+
+# 4. Indexar el corpus del tenant demo (clínica dental)
 uv run chatbot ingest
 
-# 4a. Chat en terminal
+# 5a. Chat en terminal
 uv run chatbot chat
 
-# 4b. …o canal web con widget en http://localhost:8000
-uv run uvicorn chatbot_app.main:app
+# 5b. …o canal web con widget en http://localhost:8000
+uv run uvicorn chatbot_app.main:app --reload
 ```
 
 ## Montar la solución para una nueva empresa
@@ -79,10 +99,10 @@ uv run uvicorn chatbot_app.main:app
 2. Edita `config.yaml`: nombre, sector, alcance temático, respuesta fuera de alcance,
    servicios, horarios y zona horaria.
 3. Reemplaza los documentos de `docs/` (markdown, txt o PDF) con la información real.
-4. Apunta la instalación al tenant y reindexa:
+4. Apunta la instalación al nuevo tenant y reindexa:
 
 ```bash
-# .env
+# en .env
 CHATBOT_TENANT=mi_empresa
 ```
 
@@ -90,45 +110,57 @@ CHATBOT_TENANT=mi_empresa
 uv run chatbot ingest
 ```
 
+Listo. No se toca ningún archivo de código.
+
 ## Cambiar el modelo (local ⇄ cloud)
 
 Todo pasa por [LiteLLM](https://docs.litellm.ai): el identificador de modelo decide el
 provider. En `.env` (ver [.env.example](.env.example)):
 
 ```bash
-# Local (MVP)
-CHATBOT_LLM_MODEL=ollama/llama3.1:8b
+# Local (MVP) — recomendado por mejor tool calling:
+CHATBOT_LLM_MODEL=ollama/qwen3:8b
 CHATBOT_LLM_API_BASE=http://localhost:11434
 
-# Cloud (producción) — requiere la API key del provider en el entorno
+# Cloud (producción web) — requiere la API key del provider:
 CHATBOT_LLM_MODEL=anthropic/claude-haiku-4-5-20251001
 CHATBOT_LLM_API_BASE=
+# ANTHROPIC_API_KEY=sk-ant-...
+
+# Cloud alternativo:
+# CHATBOT_LLM_MODEL=openai/gpt-4.1-mini
+# OPENAI_API_KEY=sk-...
 ```
 
-Antes de promover un cambio de modelo, valida con la suite de tests y una conversación
-de prueba end-to-end (pregunta del corpus, pregunta fuera de alcance, reserva de cita).
+**Antes de promover un cambio de modelo**, valida con el script de evaluación:
+
+```bash
+uv run python scripts/evaluate.py
+```
 
 ## Desarrollo
 
 ```bash
-uv run pytest            # tests (rápidos, sin red: FakeLLM/FakeEmbedder)
-uv run pytest -m slow    # integración con Ollama real (requiere Ollama activo)
+uv run pytest                                        # tests rápidos (FakeLLM, sin red)
+uv run pytest -m slow                               # integración con Ollama real
 uv run ruff check src tests && uv run ruff format --check src tests
 uv run mypy src
 ```
 
 Decisiones de arquitectura documentadas en [docs/adr/](docs/adr/).
 
-## Limitaciones actuales (honestas)
+## Limitaciones actuales
 
 - **Sesiones en memoria**: el historial de conversación se pierde al reiniciar el
-  proceso (suficiente para MVP single-process; Redis/DB al escalar).
-- **Un recurso por tenant**: el motor de citas asume una sola agenda (no hay múltiples
-  profesionales en paralelo todavía).
-- **Guards heurísticos**: la defensa contra prompt injection es por patrones + reglas
-  de prompt; un modelo pequeño local sigue siendo más manipulable que uno cloud.
-- **Sin sincronización real con Google Calendar**: el contrato (`CalendarSync`) existe,
-  la implementación es una fase futura.
-- **WhatsApp**: pendiente; requiere Meta Cloud API/BSP y plantillas aprobadas, y desde
-  enero 2026 Meta solo permite agentes de propósito específico (este bot califica:
-  soporte acotado + citas).
+  proceso. Suficiente para MVP single-process; se añade Redis o DB en producción.
+- **Un recurso por tenant**: el motor de citas asume una sola agenda por empresa
+  (sin soporte de múltiples profesionales en paralelo todavía).
+- **Scope enforcement por prompt**: la restricción de temas depende de que el LLM
+  siga las instrucciones del system prompt. Los modelos de 8B lo hacen de forma menos
+  fiable que los modelos cloud — comportamiento mejorable con un clasificador de
+  intención explícito como segunda capa.
+- **Sin sincronización real con Google Calendar**: el contrato (`CalendarSync`) está
+  definido; la implementación es una fase futura.
+- **WhatsApp pendiente**: requiere Meta Cloud API o un BSP (Twilio / 360dialog),
+  plantillas aprobadas y cumplir la política 2026 de Meta (solo agentes task-specific;
+  este bot califica: soporte acotado + citas).
