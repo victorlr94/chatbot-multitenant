@@ -7,8 +7,14 @@ para que el agente los comunique, no como excepciones.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, date
 from typing import Any
+
+_WEEKDAY_ES = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
+
+
+def _date_label(d: date) -> str:
+    return f"{d.isoformat()} ({_WEEKDAY_ES[d.weekday()]})"
 
 from chatbot_core.agent.tools.base import Tool
 from chatbot_core.scheduling.exceptions import SchedulingError
@@ -49,7 +55,10 @@ def build_scheduling_tools(scheduling: SchedulingService) -> list[Tool]:
             return str(exc)
         if not slots:
             return "No hay horarios disponibles en el período consultado."
-        lines = [f"- {date}: {', '.join(times)}" for date, times in slots.items()]
+        lines = [
+            f"- {_date_label(datetime.fromisoformat(d).date())}: {', '.join(times)}"
+            for d, times in slots.items()
+        ]
         return "Horarios disponibles (fecha: horas):\n" + "\n".join(lines)
 
     def book_appointment(arguments: dict[str, Any]) -> str:
@@ -142,8 +151,13 @@ def build_scheduling_tools(scheduling: SchedulingService) -> list[Tool]:
             spec=ToolSpec(
                 name="book_appointment",
                 description=(
-                    "Reserva una cita. SOLO llamar cuando el usuario ya confirmó servicio, "
-                    "fecha, hora, y dio su nombre y teléfono."
+                    "Reserva una cita. REQUISITOS ESTRICTOS antes de llamar: "
+                    "(1) el usuario eligió explícitamente servicio, fecha y hora, "
+                    "(2) el usuario dio su nombre y teléfono, "
+                    "(3) el usuario respondió SÍ a la pregunta de confirmación en un turno anterior. "
+                    "Si falta cualquiera de estos tres requisitos, NO llames esta herramienta — "
+                    "primero recaba la información que falta. "
+                    "Llama esta herramienta UNA SOLA VEZ por reserva."
                 ),
                 parameters={
                     "type": "object",
