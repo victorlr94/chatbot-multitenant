@@ -121,7 +121,11 @@ def build_scheduling_tools(scheduling: SchedulingService) -> list[Tool]:
         Tool(
             spec=ToolSpec(
                 name="get_services",
-                description="Lista los servicios agendables del negocio con su id y duración.",
+                description=(
+                    "Lista los IDs de servicios agendables para usar en las herramientas de citas. "
+                    "Úsala SOLO durante el flujo de agendamiento (cuando el usuario quiere reservar). "
+                    "Para preguntas informativas sobre servicios, precios o descripciones, usa search_kb."
+                ),
                 parameters={"type": "object", "properties": {}},
             ),
             handler=get_services,
