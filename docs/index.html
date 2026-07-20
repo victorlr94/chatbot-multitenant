@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chatbot multi-tenant · RAG + agendamiento de citas</title>
+<meta name="description" content="Chatbot reutilizable por sector: responde sobre una base de conocimiento (RAG) y gestiona citas. MVP local con Ollama, producción con Claude Haiku.">
+<style>
+  :root{
+    --bg:#0b1020; --bg-soft:#111a30; --card:#151f38; --line:#243352;
+    --txt:#e6ecf7; --muted:#93a2c4; --accent:#5b8cff; --accent-2:#38d3a8;
+    --radius:16px; --maxw:1080px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--txt);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.6; -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--accent); text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:var(--maxw); margin:0 auto; padding:0 24px}
+  .badge{
+    display:inline-block; font-size:.8rem; font-weight:600; letter-spacing:.3px;
+    color:var(--accent-2); background:rgba(56,211,168,.1);
+    border:1px solid rgba(56,211,168,.3); padding:4px 12px; border-radius:999px;
+  }
+
+  /* HERO */
+  header.hero{
+    background:radial-gradient(1200px 600px at 70% -10%, rgba(91,140,255,.18), transparent 60%),
+               radial-gradient(900px 500px at 10% 0%, rgba(56,211,168,.12), transparent 55%);
+    border-bottom:1px solid var(--line);
+    padding:72px 0 56px;
+  }
+  .hero-grid{display:grid; grid-template-columns:1.1fr .9fr; gap:48px; align-items:center}
+  h1{font-size:2.5rem; line-height:1.15; margin:16px 0 12px; letter-spacing:-.5px}
+  h1 .grad{background:linear-gradient(90deg,var(--accent),var(--accent-2));
+    -webkit-background-clip:text; background-clip:text; color:transparent}
+  .lead{font-size:1.15rem; color:var(--muted); margin:0 0 28px}
+  .cta{display:flex; gap:12px; flex-wrap:wrap}
+  .btn{
+    display:inline-block; padding:11px 20px; border-radius:12px; font-weight:600;
+    border:1px solid var(--line);
+  }
+  .btn.primary{background:linear-gradient(90deg,var(--accent),#4a7bf0); color:#fff; border:none}
+  .btn.primary:hover{text-decoration:none; filter:brightness(1.08)}
+  .btn.ghost:hover{text-decoration:none; border-color:var(--accent)}
+
+  .demo-frame{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:12px; box-shadow:0 20px 60px rgba(0,0,0,.45);
+  }
+  .demo-frame img{display:block; width:100%; height:auto; border-radius:10px}
+  .demo-cap{color:var(--muted); font-size:.82rem; text-align:center; margin-top:10px}
+
+  /* SECTIONS */
+  section{padding:64px 0; border-bottom:1px solid var(--line)}
+  h2{font-size:1.7rem; margin:0 0 8px; letter-spacing:-.3px}
+  .sub{color:var(--muted); margin:0 0 32px; max-width:640px}
+
+  .grid{display:grid; grid-template-columns:repeat(3,1fr); gap:20px}
+  .card{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:22px; transition:transform .15s ease, border-color .15s ease;
+  }
+  .card:hover{transform:translateY(-3px); border-color:var(--accent)}
+  .card .ico{font-size:1.6rem; margin-bottom:10px}
+  .card h3{margin:0 0 6px; font-size:1.08rem}
+  .card p{margin:0; color:var(--muted); font-size:.94rem}
+
+  /* how it works */
+  .flow{display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-top:8px}
+  .step{background:var(--bg-soft); border:1px solid var(--line); border-radius:12px; padding:18px}
+  .step .n{color:var(--accent); font-weight:700; font-size:.85rem}
+  .step h4{margin:6px 0 4px; font-size:1rem}
+  .step p{margin:0; color:var(--muted); font-size:.88rem}
+
+  /* engineering / for recruiters */
+  .eng{display:grid; grid-template-columns:1fr 1fr; gap:20px}
+  .eng ul{margin:0; padding-left:20px}
+  .eng li{margin:8px 0; color:var(--muted)}
+  .eng li b{color:var(--txt)}
+  .stack{display:flex; flex-wrap:wrap; gap:8px; margin-top:18px}
+  .chip{background:var(--bg-soft); border:1px solid var(--line); color:var(--muted);
+    padding:6px 12px; border-radius:999px; font-size:.85rem}
+
+  .metrics{display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-top:8px}
+  .metric{text-align:center; background:var(--card); border:1px solid var(--line);
+    border-radius:var(--radius); padding:22px 12px}
+  .metric .big{font-size:2rem; font-weight:800;
+    background:linear-gradient(90deg,var(--accent),var(--accent-2));
+    -webkit-background-clip:text; background-clip:text; color:transparent}
+  .metric .lbl{color:var(--muted); font-size:.85rem; margin-top:4px}
+
+  footer{padding:40px 0; color:var(--muted); font-size:.9rem}
+  .foot-grid{display:flex; justify-content:space-between; flex-wrap:wrap; gap:16px; align-items:center}
+
+  @media (max-width:860px){
+    .hero-grid{grid-template-columns:1fr; gap:32px}
+    h1{font-size:2rem}
+    .grid{grid-template-columns:1fr 1fr}
+    .flow{grid-template-columns:1fr 1fr}
+    .eng{grid-template-columns:1fr}
+    .metrics{grid-template-columns:1fr 1fr}
+  }
+  @media (max-width:520px){
+    .grid,.metrics{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <span class="badge">Producto · MVP funcional</span>
+      <h1>Chatbot <span class="grad">multi-tenant</span> con RAG y agendamiento de citas</h1>
+      <p class="lead">
+        Un asistente virtual reutilizable por sector: responde preguntas sobre la base de
+        conocimiento de cada empresa y gestiona citas (agendar, consultar, cancelar).
+        Montar la solución para un cliente nuevo es <b>crear una carpeta de configuración</b>
+        &mdash; el código no se toca.
+      </p>
+      <div class="cta">
+        <a class="btn primary" href="#features">Ver características</a>
+        <a class="btn ghost" href="https://github.com/" target="_blank" rel="noopener">Código fuente</a>
+      </div>
+    </div>
+    <div>
+      <div class="demo-frame">
+        <img src="assets/demo.gif" alt="Demostración en vivo del chatbot respondiendo y agendando una cita">
+        <div class="demo-cap">Conversación real: consulta de servicios + flujo de agendamiento</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<section id="features">
+  <div class="wrap">
+    <h2>Qué hace</h2>
+    <p class="sub">Dos capacidades centrales sobre una arquitectura pensada para escalar de POC a producción.</p>
+    <div class="grid">
+      <div class="card">
+        <div class="ico">📚</div>
+        <h3>Respuestas con fuentes (RAG)</h3>
+        <p>Recupera información del corpus del cliente (markdown/PDF) y responde citando la fuente. Si no sabe, lo dice &mdash; nunca inventa.</p>
+      </div>
+      <div class="card">
+        <div class="ico">📅</div>
+        <h3>Agendamiento de citas</h3>
+        <p>Consulta disponibilidad, reserva, consulta y cancela citas. Lock transaccional que evita la doble reserva del mismo horario.</p>
+      </div>
+      <div class="card">
+        <div class="ico">🏢</div>
+        <h3>Multi-tenant por config</h3>
+        <p>Cada empresa es una carpeta: alcance, persona, servicios, horarios y documentos. Sin tocar ni desplegar código nuevo.</p>
+      </div>
+      <div class="card">
+        <div class="ico">🔒</div>
+        <h3>Scope estricto y guards</h3>
+        <p>Rechaza temas fuera de dominio y resiste inyección de prompt. Cumple la política 2026 de agentes task-specific para WhatsApp.</p>
+      </div>
+      <div class="card">
+        <div class="ico">🔀</div>
+        <h3>Local ⇄ cloud sin código</h3>
+        <p>Ollama en desarrollo (sin costo), Claude Haiku en producción. Cambiar de modelo es editar el <code>.env</code>.</p>
+      </div>
+      <div class="card">
+        <div class="ico">🌐</div>
+        <h3>Multi-idioma y multicanal</h3>
+        <p>Embeddings multilingües. Canales como adaptadores: CLI y web hoy; WhatsApp con el diseño ya preparado.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Cómo funciona</h2>
+    <p class="sub">Un solo agente con herramientas (tool calling) &mdash; no multiagente. Decisión respaldada por investigación: para un chatbot conversacional, el multiagente multiplica el costo en tokens sin mejorar la calidad.</p>
+    <div class="flow">
+      <div class="step"><div class="n">01</div><h4>Mensaje</h4><p>Entra por CLI, web o (futuro) WhatsApp y pasa por un guard de entrada.</p></div>
+      <div class="step"><div class="n">02</div><h4>Agente decide</h4><p>El LLM elige la herramienta: buscar en la base o gestionar una cita.</p></div>
+      <div class="step"><div class="n">03</div><h4>Ejecuta y sintetiza</h4><p>Recupera datos o reserva el slot y redacta una respuesta natural.</p></div>
+      <div class="step"><div class="n">04</div><h4>Guard + log</h4><p>Filtra fugas, registra la interacción (PII redactada) y responde.</p></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Ingeniería detrás</h2>
+    <p class="sub">Decisiones de diseño orientadas a que el proyecto evolucione de prototipo a producción sin reescribirse.</p>
+    <div class="eng">
+      <ul>
+        <li><b>Arquitectura núcleo/dominio:</b> lógica reutilizable separada de lo específico de cada cliente; el núcleo no depende de la aplicación.</li>
+        <li><b>Interfaces con <code>typing.Protocol</code>:</b> LLM, vector store, embeddings y calendario son intercambiables sin tocar el resto.</li>
+        <li><b>Configuración centralizada</b> (Pydantic) como única fuente de verdad, inyectada hacia abajo.</li>
+      </ul>
+      <ul>
+        <li><b>Calidad desde el commit 1:</b> Ruff + mypy <code>strict</code> en el núcleo + pre-commit.</li>
+        <li><b>Suite de tests con LLM falso</b> (sin red ni GPU) e integración marcada aparte.</li>
+        <li><b>Evaluación como gate:</b> dataset de preguntas reales y adversariales para validar cada cambio de modelo con evidencia, no con fe.</li>
+      </ul>
+    </div>
+    <div class="stack">
+      <span class="chip">Python 3.12</span>
+      <span class="chip">FastAPI</span>
+      <span class="chip">LiteLLM</span>
+      <span class="chip">ChromaDB</span>
+      <span class="chip">SQLAlchemy</span>
+      <span class="chip">Pydantic</span>
+      <span class="chip">Ollama</span>
+      <span class="chip">Claude Haiku</span>
+      <span class="chip">pytest · ruff · mypy</span>
+      <span class="chip">uv</span>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>De un vistazo</h2>
+    <p class="sub">Estado del MVP a julio de 2026.</p>
+    <div class="metrics">
+      <div class="metric"><div class="big">52</div><div class="lbl">tests en verde</div></div>
+      <div class="metric"><div class="big">1</div><div class="lbl">carpeta por cliente nuevo</div></div>
+      <div class="metric"><div class="big">~$0.003</div><div class="lbl">coste por conversación (Haiku)</div></div>
+      <div class="metric"><div class="big">0</div><div class="lbl">líneas de código por tenant</div></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap foot-grid">
+    <div>Chatbot multi-tenant · RAG + agendamiento &mdash; proyecto de portfolio</div>
+    <div><a href="../README.md">README</a> · <a href="ROADMAP.md">Roadmap</a> · <a href="adr/">Decisiones (ADR)</a></div>
+  </div>
+</footer>
+
+</body>
+</html>

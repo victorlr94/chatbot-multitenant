@@ -9,8 +9,15 @@ from __future__ import annotations
 from pathlib import Path
 
 import yaml
+from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Carga .env en os.environ para que LiteLLM (y otros clientes) encuentren
+# ANTHROPIC_API_KEY, OPENAI_API_KEY, etc. sin pasos extra.
+# override=False: las variables ya definidas en el entorno del SO tienen precedencia
+# (útil en CI/CD donde los secretos se inyectan directamente).
+load_dotenv(override=False)
 
 
 class Settings(BaseSettings):
@@ -18,9 +25,9 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", env_prefix="CHATBOT_", extra="ignore")
 
-    # LLM — cambiar de Ollama a cloud es cambiar estas dos variables.
+    # LLM — cambiar de Ollama a cloud es cambiar estas variables en .env.
     llm_model: str = "ollama/llama3.1:8b"
-    llm_api_base: str | None = "http://localhost:11434"
+    llm_api_base: str | None = None  # solo para Ollama; dejar vacío con modelos cloud
     llm_temperature: float = 0.2
     llm_timeout: float = 120.0
     # None = comportamiento del provider; False = desactiva thinking en qwen3 (mucho más rápido)

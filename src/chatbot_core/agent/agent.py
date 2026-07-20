@@ -17,6 +17,19 @@ FALLBACK_RESPONSE = (
     "Lo siento, no pude generar una respuesta en este momento. ¿Puedes reformular tu pregunta?"
 )
 
+# Inyectado solo en el paso de síntesis final (no queda en el historial permanente).
+# Los modelos pequeños (qwen3, llama3) tienden a copiar el formato de los datos de la tool
+# en lugar de redactar texto natural; este recordatorio lo previene.
+_SYNTHESIS_FORMAT_REMINDER = ChatMessage(
+    role="user",
+    content=(
+        "INSTRUCCIÓN DE FORMATO (no es parte de la conversación): "
+        "redacta tu respuesta en texto natural en español, "
+        "sin JSON, sin código, sin diccionarios Python. "
+        "Usa prosa o listas simples con guiones."
+    ),
+)
+
 
 @dataclass
 class AgentReply:
@@ -71,7 +84,9 @@ class Agent:
                 history.append(ChatMessage(role="tool", content=result, tool_call_id=call.id))
 
         # Síntesis final sin herramientas (agotadas las rondas o parada voluntaria post-tools).
-        response = self._llm.chat(history, tools=None)
+        # El recordatorio de formato se pasa en una copia temporal; no se persiste en history.
+        synthesis_history = list(history) + [_SYNTHESIS_FORMAT_REMINDER]
+        response = self._llm.chat(synthesis_history, tools=None)
         content = response.content.strip() or FALLBACK_RESPONSE
         history.append(ChatMessage(role="assistant", content=content))
         return AgentReply(content=content, tool_calls_made=tools_made)

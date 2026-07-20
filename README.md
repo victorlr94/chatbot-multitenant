@@ -9,6 +9,10 @@ El MVP corre 100% local con [Ollama](https://ollama.com) (LLM y embeddings). El 
 un modelo cloud (Anthropic, OpenAI, etc.) para producción en web o WhatsApp es un cambio
 de variables de entorno, no de código.
 
+![Demostración del chatbot](docs/assets/demo.gif)
+
+> Página de presentación del producto: [`docs/index.html`](docs/index.html) (abrible en el navegador).
+
 ## Estado actual (julio 2026)
 
 | Componente | Estado |
@@ -20,6 +24,7 @@ de variables de entorno, no de código.
 | 52 tests unitarios (FakeLLM, sin red) | ✅ Todos en verde |
 | Verificación e2e con Ollama real (`qwen3:8b`) | ✅ RAG + tool calling validado |
 | Swap local → cloud (LiteLLM) | ✅ Solo cambio de `.env` |
+| Producción con Claude Haiku 4.5 (Anthropic) | ✅ Validado end-to-end |
 | Multi-tenant por configuración | ✅ Añadir empresa = copiar carpeta + ingest |
 | Sync Google Calendar | 🔲 Contrato definido, implementación pendiente |
 | Canal WhatsApp | 🔲 Diseño preparado, requiere Meta API/BSP |
