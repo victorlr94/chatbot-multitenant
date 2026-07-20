@@ -30,3 +30,6 @@ logs/
 .vscode/
 Thumbs.db
 .DS_Store
+
+# Config local de Claude Code
+.claude/
